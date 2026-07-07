@@ -1,0 +1,10 @@
+.venv/
+__pycache__/
+*.pyc
+.env
+checkpoints.sqlite
+results.json
+outbox/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/

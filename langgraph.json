@@ -1,0 +1,8 @@
+{
+  "dependencies": ["."],
+  "graphs": {
+    "reclutamiento": "./agents/graph.py:build_graph_for_platform"
+  },
+  "env": ".env",
+  "python_version": "3.11"
+}
