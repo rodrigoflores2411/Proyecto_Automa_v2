@@ -1,78 +1,102 @@
-"""
-main.py — Punto de entrada del sistema migrado a Deep Agent + LangGraph.
-
-Uso:
-    python main.py
-
-Requiere un archivo .env (copiar de .env.example) con GROQ_API_KEY como mínimo.
-"""
-
 import os
 from dotenv import load_dotenv
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 
 load_dotenv()
 
 from shared.schemas import CandidateProfile
 from agents.graph import build_graph
 
+app = FastAPI(
+    title="Sistema Multiagente de Reclutamiento",
+    version="2.0",
+    description="Deep Agents + LangGraph + Groq"
+)
+
+graph = build_graph(
+    checkpoint_db_path="checkpoints.sqlite"
+)
 JOB_REQUIREMENTS = {
     "position": "Desarrollador Backend Senior",
     "required_skills": ["Python", "FastAPI", "PostgreSQL", "Docker"],
     "min_years_exp": 4,
     "education": "Ingeniería de Sistemas",
-    "description": "Backend developer con experiencia en microservicios.",
+    "description": "Backend developer con experiencia en microservicios."
 }
 
-# Mismos casos de prueba que tests/test_cases.py del proyecto original (§5.1 golden set)
-CANDIDATES = [
-    CandidateProfile(
-        candidate_id="C001", name="Ana García", email="ana.garcia@email.com",
-        phone="+51 999 111 111", position="Desarrollador Backend Senior", years_exp=6,
-        skills=["Python", "FastAPI", "PostgreSQL", "Docker", "Kubernetes"],
-        education="Ingeniería de Sistemas", dni="12345678",
-        cv_text="6 años de experiencia liderando equipos backend con Python y FastAPI. "
-                "Experta en PostgreSQL, Docker y Kubernetes en producción.",
-    ),
-    CandidateProfile(
-        candidate_id="C004", name="María Torres", email="sin-arroba-email",
-        phone="", position="Desarrollador Backend Senior", years_exp=1,
-        skills=[], education="", dni="",
-        cv_text="Soy dev.",
-    ),
-]
+
+@app.get("/")
+def root():
+    return {
+        "status": "online",
+        "project": "Proyecto Automa v2",
+        "framework": "FastAPI",
+        "graph": "LangGraph"
+    }
 
 
-def run_candidate(app, candidate: CandidateProfile):
-    config = {"configurable": {"thread_id": candidate.candidate_id}}
-    initial_state = {"candidate": candidate, "job_requirements": JOB_REQUIREMENTS}
-
-    print(f"\n=== Procesando {candidate.name} ({candidate.candidate_id}) ===")
-    for event in app.stream(initial_state, config=config, stream_mode="values"):
-        pass  # el estado final queda en 'event' tras la última actualización
-
-    state = app.get_state(config)
-    if state.next:
-        print(f"  ⏸  PAUSADO para revisión humana (HITL). Nodo pendiente: {state.next}")
-        print("     Para continuar tras revisión: app.invoke(None, config=config)")
-    else:
-        print(f"  ✅ Completado: {state.values.get('classification', 'RECHAZO_TEMPRANO')} "
-              f"/ {state.values.get('decision', state.values.get('validation_issues'))}")
-    return state
+@app.get("/health")
+def health():
+    return {
+        "status": "healthy"
+    }
 
 
-def main():
-    if not os.getenv("GROQ_API_KEY"):
-        raise SystemExit(
-            "Falta GROQ_API_KEY. Copia .env.example a .env y completa tu API key "
-            "(gratis en https://console.groq.com/keys)."
+@app.post("/evaluate")
+def evaluate(candidate: CandidateProfile):
+
+    config = {
+        "configurable": {
+            "thread_id": candidate.candidate_id
+        }
+    }
+
+    initial_state = {
+        "candidate": candidate,
+        "job_requirements": JOB_REQUIREMENTS
+    }
+
+    try:
+
+        for _ in graph.stream(
+                initial_state,
+                config=config,
+                stream_mode="values"
+        ):
+            pass
+
+        state = graph.get_state(config)
+
+        return JSONResponse(
+            content=jsonable_encoder({
+                "candidate": candidate.name,
+                "classification": state.values.get(
+                    "classification",
+                    "RECHAZO_TEMPRANO"
+                ),
+                "decision": state.values.get(
+                    "decision",
+                    state.values.get("validation_issues")
+                ),
+                "state": state.values
+            })
         )
 
-    app = build_graph()
-    for candidate in CANDIDATES:
-        run_candidate(app, candidate)
+    except Exception as e:
 
-    print("\nResultados guardados en results.json — correos en outbox/ (modo dry_run)")
+        raise HTTPException(
+            status_code=500,
+            detail=str(e)
+        )
 
 
-if __name__ == "__main__":
-    main()
+@app.get("/metrics")
+def metrics():
+
+    return {
+        "status": "running",
+        "model": "llama-3.1-8b-instant",
+        "provider": "Groq"
+    }

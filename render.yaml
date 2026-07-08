@@ -1,0 +1,25 @@
+services:
+
+  - type: web
+
+    name: proyecto-automa-v2
+
+    runtime: docker
+
+    dockerfilePath: ./Dockerfile
+
+    plan: free
+
+    autoDeploy: true
+
+    healthCheckPath: /health
+
+    envVars:
+      - key: GROQ_API_KEY
+        sync: false
+      - key: SUNEDU_USE_MOCK
+        value: "true"
+      - key: EMAIL_SEND_MODE
+        value: "dry_run"
+      - key: CHECKPOINT_DB_PATH
+        value: "checkpoints.sqlite"

@@ -3,11 +3,11 @@ graph.py — Construye el Deep Agent sobre LangGraph (documento §3.5 y §3.6).
 
 Reemplaza a agents/orchestrator.py (ThreadPoolExecutor manual + SharedState con RLock)
 del proyecto original por:
-  - Un StateGraph con nodos = subagentes (responsabilidad única, igual que antes).
-  - Aristas condicionales para el rechazo temprano en Validación.
-  - Un tramo paralelo real (fan-out) para Comunicación + FollowUp (el "swarm").
-  - Checkpointing en SQLite (persistencia y reanudación, RF-08).
-  - Un punto de interrupción (HITL) en Clasificación para casos frontera.
+- Un StateGraph con nodos = subagentes (responsabilidad única, igual que antes).
+- Aristas condicionales para el rechazo temprano en Validación.
+- Un tramo paralelo real (fan-out) para Comunicación + FollowUp (el "swarm").
+- Checkpointing en SQLite (persistencia y reanudación, RF-08).
+- Un punto de interrupción (HITL) en Clasificación para casos frontera.
 """
 
 import os
@@ -101,7 +101,7 @@ def evaluar_clasificar(state: RecruitmentState) -> dict:
     # HITL dinámico: pausa el grafo si cae en la banda frontera B/C (score 50-59)
     # o si SUNEDU no pudo verificar el título — ver documento §3.5 "Human-in-the-loop".
     sunedu_not_verified = "NO COINCIDE" in state.get("sunedu_summary", "") or \
-                           "No se encontraron" in state.get("sunedu_summary", "")
+                        "No se encontraron" in state.get("sunedu_summary", "")
     if 50 <= ev.score <= 59 or sunedu_not_verified:
         raise NodeInterrupt(
             f"Revisión humana requerida: score={ev.score} (frontera) o SUNEDU no verificado. "
@@ -186,9 +186,10 @@ def build_graph(checkpoint_db_path: str = None, use_local_checkpointer: bool = T
     if not use_local_checkpointer:
         return graph.compile()  # LangGraph Platform inyecta su propio checkpointer
 
+    import sqlite3
     checkpoint_db_path = checkpoint_db_path or os.getenv("CHECKPOINT_DB_PATH", "checkpoints.sqlite")
-    checkpointer_cm = SqliteSaver.from_conn_string(checkpoint_db_path)
-    checkpointer = checkpointer_cm.__enter__()  # mantenido abierto durante la vida del proceso
+    conn = sqlite3.connect(checkpoint_db_path, check_same_thread=False)
+    checkpointer = SqliteSaver(conn)
     return graph.compile(checkpointer=checkpointer)
 
 

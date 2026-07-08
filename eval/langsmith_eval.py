@@ -21,6 +21,7 @@ load_dotenv()
 from langsmith import Client
 from langsmith.evaluation import evaluate
 
+from shared.schemas import CandidateProfile
 from agents.graph import build_graph
 from eval.golden_set import GOLDEN_SET, JOB_REQUIREMENTS
 
@@ -76,6 +77,8 @@ def _run_pipeline(inputs: dict) -> dict:
     """Wrapper que LangSmith invoca por cada ejemplo del dataset."""
     app = build_graph(checkpoint_db_path=":memory:")
     candidate = inputs["candidate"]
+    if isinstance(candidate, dict):
+        candidate = CandidateProfile(**candidate)
     config = {"configurable": {"thread_id": f"eval-{candidate.candidate_id}"}}
     state = {"candidate": candidate, "job_requirements": JOB_REQUIREMENTS}
 
@@ -133,7 +136,7 @@ def main():
         experiment_prefix="reclutamiento-deepagent",
         metadata={"model": "llama-3.3-70b-versatile", "prompt_version": "v1"},
     )
-    print(f"\n✅ Experimento subido a LangSmith: {results}")
+    print(f"\n[OK] Experimento subido a LangSmith: {results}")
     print("   Revisa el proyecto en https://smith.langchain.com para comparar "
           "contra el experimento baseline (§5.3.3 Comparación de experimentos).")
 
