@@ -1,7 +1,9 @@
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
 from fastapi.encoders import jsonable_encoder
+from fastapi.staticfiles import StaticFiles
+import os
 
 from shared.schemas import CandidateProfile
 from agents.graph import build_graph
@@ -13,6 +15,11 @@ app = FastAPI(
     version="2.0",
     description="Deep Agents + LangGraph + Groq"
 )
+
+# Servir archivos estáticos (frontend)
+STATIC_DIR = os.path.join(os.path.dirname(__file__), "static")
+if os.path.isdir(STATIC_DIR):
+    app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 graph = build_graph(
     checkpoint_db_path="checkpoints.sqlite"
@@ -28,6 +35,9 @@ JOB_REQUIREMENTS = {
 
 @app.get("/")
 def root():
+    index_file = os.path.join(STATIC_DIR, "index.html")
+    if os.path.isfile(index_file):
+        return FileResponse(index_file)
     return {
         "status": "online",
         "project": "Proyecto Automa v2",

@@ -1,0 +1,946 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Automa v2 — Sistema Multiagente de Reclutamiento</title>
+  <meta name="description" content="Plataforma de evaluación inteligente de candidatos con IA multiagente basada en LangGraph y Groq." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0a0d14;
+      --surface:  #111620;
+      --card:     #161c2c;
+      --border:   #1e2840;
+      --accent:   #5b8df6;
+      --accent2:  #a78bfa;
+      --green:    #34d399;
+      --red:      #f87171;
+      --yellow:   #fbbf24;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --radius:   14px;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* ─── NAVBAR ─── */
+    nav {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 1rem 2.5rem;
+      border-bottom: 1px solid var(--border);
+      background: rgba(10,13,20,.85);
+      backdrop-filter: blur(14px);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+    }
+    .nav-brand {
+      display: flex;
+      align-items: center;
+      gap: .6rem;
+      font-weight: 700;
+      font-size: 1.15rem;
+      letter-spacing: -.01em;
+    }
+    .nav-brand .dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 8px var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse {
+      0%,100% { opacity: 1; } 50% { opacity: .4; }
+    }
+    .nav-status {
+      font-size: .78rem;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+    }
+    .status-pill {
+      background: rgba(52,211,153,.1);
+      color: var(--green);
+      border: 1px solid rgba(52,211,153,.25);
+      padding: .2rem .65rem;
+      border-radius: 99px;
+      font-size: .72rem;
+      font-weight: 600;
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+      text-align: center;
+      padding: 4rem 1.5rem 2.5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .hero::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 70% 50% at 50% -10%, rgba(91,141,246,.18), transparent);
+      pointer-events: none;
+    }
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .4rem;
+      background: rgba(91,141,246,.1);
+      border: 1px solid rgba(91,141,246,.3);
+      color: var(--accent);
+      padding: .3rem .85rem;
+      border-radius: 99px;
+      font-size: .75rem;
+      font-weight: 600;
+      margin-bottom: 1.2rem;
+      letter-spacing: .04em;
+    }
+    .hero h1 {
+      font-size: clamp(2rem, 5vw, 3.2rem);
+      font-weight: 800;
+      background: linear-gradient(135deg, #e2e8f0 30%, var(--accent2));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      line-height: 1.15;
+      margin-bottom: .8rem;
+    }
+    .hero p {
+      color: var(--muted);
+      max-width: 520px;
+      margin: 0 auto 2rem;
+      font-size: 1rem;
+    }
+
+    /* ─── PIPELINE STEPS ─── */
+    .pipeline {
+      display: flex;
+      justify-content: center;
+      gap: 0;
+      flex-wrap: wrap;
+      max-width: 860px;
+      margin: 0 auto 3rem;
+    }
+    .step {
+      display: flex;
+      align-items: center;
+      gap: .4rem;
+      font-size: .75rem;
+      color: var(--muted);
+      font-weight: 500;
+    }
+    .step-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: var(--card);
+      border: 1px solid var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+    }
+    .step-arrow { color: var(--border); padding: 0 .3rem; font-size: .85rem; }
+
+    /* ─── MAIN LAYOUT ─── */
+    .main {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1.5rem;
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 1.5rem 4rem;
+    }
+    @media (max-width: 768px) {
+      .main { grid-template-columns: 1fr; }
+      nav { padding: 1rem 1.2rem; }
+    }
+
+    /* ─── CARD ─── */
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 1.6rem;
+      transition: border-color .2s;
+    }
+    .card:hover { border-color: rgba(91,141,246,.35); }
+    .card-title {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 1.2rem;
+      display: flex;
+      align-items: center;
+      gap: .5rem;
+    }
+    .card-title::after {
+      content: '';
+      flex: 1;
+      height: 1px;
+      background: var(--border);
+    }
+
+    /* ─── FORM ─── */
+    .form-group { margin-bottom: 1rem; }
+    label {
+      display: block;
+      font-size: .78rem;
+      font-weight: 500;
+      color: var(--muted);
+      margin-bottom: .35rem;
+    }
+    input, textarea, select {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: .6rem .9rem;
+      font-size: .875rem;
+      font-family: inherit;
+      transition: border-color .2s, box-shadow .2s;
+      outline: none;
+    }
+    input:focus, textarea:focus, select:focus {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(91,141,246,.15);
+    }
+    textarea { resize: vertical; min-height: 90px; }
+
+    .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: .75rem; }
+
+    /* Tags input */
+    .tags-wrapper {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .4rem .7rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: .35rem;
+      min-height: 42px;
+      align-items: center;
+      cursor: text;
+      transition: border-color .2s, box-shadow .2s;
+    }
+    .tags-wrapper:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px rgba(91,141,246,.15);
+    }
+    .tag {
+      background: rgba(91,141,246,.15);
+      color: var(--accent);
+      border: 1px solid rgba(91,141,246,.3);
+      padding: .18rem .55rem;
+      border-radius: 6px;
+      font-size: .75rem;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      gap: .3rem;
+    }
+    .tag-remove {
+      cursor: pointer;
+      opacity: .6;
+      transition: opacity .15s;
+      font-size: .7rem;
+    }
+    .tag-remove:hover { opacity: 1; }
+    #skills-input {
+      border: none;
+      background: transparent;
+      padding: .15rem .2rem;
+      min-width: 80px;
+      flex: 1;
+      font-size: .82rem;
+    }
+    #skills-input:focus { box-shadow: none; }
+
+    /* Button */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: .5rem;
+      padding: .75rem 1.5rem;
+      border-radius: 10px;
+      font-size: .9rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all .2s;
+      border: none;
+      width: 100%;
+      margin-top: .5rem;
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(91,141,246,.35);
+    }
+    .btn-primary:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 6px 28px rgba(91,141,246,.45);
+    }
+    .btn-primary:disabled {
+      opacity: .5;
+      cursor: not-allowed;
+    }
+    .btn-secondary {
+      background: var(--surface);
+      color: var(--muted);
+      border: 1px solid var(--border);
+      font-size: .8rem;
+      padding: .5rem 1rem;
+      width: auto;
+      margin-top: 0;
+    }
+    .btn-secondary:hover { color: var(--text); border-color: var(--accent); }
+
+    /* Spinner */
+    .spinner {
+      width: 16px; height: 16px;
+      border: 2px solid rgba(255,255,255,.3);
+      border-top-color: #fff;
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+      display: none;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ─── RESULT PANEL ─── */
+    .result-empty {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: .75rem;
+      height: 100%;
+      min-height: 300px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .result-empty-icon { font-size: 2.8rem; opacity: .3; }
+
+    /* Classification badge */
+    .classification-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: .5rem;
+      padding: .45rem 1.1rem;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      letter-spacing: .03em;
+      margin-bottom: 1rem;
+    }
+    .cls-approved { background: rgba(52,211,153,.12); color: var(--green); border: 1px solid rgba(52,211,153,.3); }
+    .cls-rejected  { background: rgba(248,113,113,.12); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
+    .cls-pending   { background: rgba(251,191,36,.12); color: var(--yellow); border: 1px solid rgba(251,191,36,.3); }
+
+    /* Score ring */
+    .score-ring-wrap {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: .4rem;
+      margin-bottom: 1.2rem;
+    }
+    .score-ring {
+      position: relative;
+      width: 88px; height: 88px;
+    }
+    .score-ring svg { transform: rotate(-90deg); }
+    .score-ring circle { fill: none; stroke-width: 7; stroke-linecap: round; }
+    .ring-bg { stroke: var(--border); }
+    .ring-fill { stroke: var(--accent); transition: stroke-dashoffset .8s ease; }
+    .score-num {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      font-weight: 800;
+      color: var(--text);
+    }
+    .score-label { font-size: .72rem; color: var(--muted); font-weight: 500; }
+
+    /* Breakdown bars */
+    .breakdown { margin-bottom: 1rem; }
+    .bar-row {
+      display: flex;
+      align-items: center;
+      gap: .7rem;
+      margin-bottom: .55rem;
+    }
+    .bar-label { font-size: .72rem; color: var(--muted); width: 90px; flex-shrink: 0; }
+    .bar-track {
+      flex: 1;
+      height: 5px;
+      background: var(--border);
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      transition: width .8s ease;
+    }
+    .bar-val { font-size: .72rem; color: var(--muted); width: 28px; text-align: right; }
+
+    /* Lists */
+    .result-section { margin-bottom: 1rem; }
+    .result-section h4 {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: .5rem;
+    }
+    .chip-list { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .chip {
+      font-size: .72rem;
+      padding: .2rem .6rem;
+      border-radius: 6px;
+      font-weight: 500;
+    }
+    .chip-green { background: rgba(52,211,153,.1); color: var(--green); border: 1px solid rgba(52,211,153,.25); }
+    .chip-red   { background: rgba(248,113,113,.1); color: var(--red); border: 1px solid rgba(248,113,113,.25); }
+    .chip-gray  { background: rgba(100,116,139,.1); color: var(--muted); border: 1px solid var(--border); }
+
+    .rationale-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .75rem 1rem;
+      font-size: .82rem;
+      color: var(--muted);
+      line-height: 1.6;
+    }
+
+    /* Error box */
+    .error-box {
+      background: rgba(248,113,113,.08);
+      border: 1px solid rgba(248,113,113,.25);
+      border-radius: 8px;
+      padding: .85rem 1rem;
+      color: var(--red);
+      font-size: .82rem;
+      display: none;
+      margin-top: .75rem;
+    }
+
+    /* History */
+    .history-list { display: flex; flex-direction: column; gap: .5rem; }
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: .55rem .85rem;
+      font-size: .8rem;
+      cursor: pointer;
+      transition: border-color .2s;
+    }
+    .history-item:hover { border-color: var(--accent); }
+    .history-name { font-weight: 600; color: var(--text); }
+    .history-meta { color: var(--muted); font-size: .72rem; }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem;
+      color: var(--muted);
+      font-size: .75rem;
+      border-top: 1px solid var(--border);
+    }
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<nav>
+  <div class="nav-brand">
+    <div class="dot"></div>
+    Automa v2
+  </div>
+  <div class="nav-status">
+    <span class="status-pill">LangGraph + Groq</span>
+    <span id="api-status">Conectando...</span>
+  </div>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-badge">⚡ Sistema Multiagente · IA Generativa</div>
+  <h1>Evaluación Inteligente<br/>de Candidatos</h1>
+  <p>Analiza perfiles de forma automática con agentes de validación, scoring y clasificación potenciados por LLMs.</p>
+
+  <div class="pipeline">
+    <div class="step"><div class="step-icon">📥</div> Ingreso</div>
+    <div class="step-arrow">→</div>
+    <div class="step"><div class="step-icon">✅</div> Validación</div>
+    <div class="step-arrow">→</div>
+    <div class="step"><div class="step-icon">📊</div> Evaluación</div>
+    <div class="step-arrow">→</div>
+    <div class="step"><div class="step-icon">🏷️</div> Clasificación</div>
+    <div class="step-arrow">→</div>
+    <div class="step"><div class="step-icon">📧</div> Comunicación</div>
+  </div>
+</section>
+
+<!-- MAIN GRID -->
+<div class="main">
+
+  <!-- FORM CARD -->
+  <div class="card">
+    <div class="card-title">📋 Datos del candidato</div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="name">Nombre completo</label>
+        <input id="name" type="text" placeholder="Juan García López" />
+      </div>
+      <div class="form-group">
+        <label for="candidate_id">ID Candidato</label>
+        <input id="candidate_id" type="text" placeholder="CAND-001" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="email">Email</label>
+        <input id="email" type="email" placeholder="juan@email.com" />
+      </div>
+      <div class="form-group">
+        <label for="phone">Teléfono</label>
+        <input id="phone" type="text" placeholder="+51 999 000 000" />
+      </div>
+    </div>
+
+    <div class="form-row">
+      <div class="form-group">
+        <label for="position">Puesto postulado</label>
+        <input id="position" type="text" value="Desarrollador Backend Senior" />
+      </div>
+      <div class="form-group">
+        <label for="years_exp">Años de experiencia</label>
+        <input id="years_exp" type="number" min="0" max="50" placeholder="5" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="education">Educación</label>
+      <input id="education" type="text" placeholder="Ingeniería de Sistemas" />
+    </div>
+
+    <div class="form-group">
+      <label>Habilidades <span style="color:var(--muted);font-weight:400">(Presiona Enter para agregar)</span></label>
+      <div class="tags-wrapper" id="tags-wrapper">
+        <input id="skills-input" type="text" placeholder="Python, FastAPI…" />
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label for="cv_text">Texto del CV / Resumen profesional</label>
+      <textarea id="cv_text" rows="4" placeholder="Descripción de experiencia, logros y competencias del candidato..."></textarea>
+    </div>
+
+    <div class="form-group">
+      <label for="dni">DNI (opcional)</label>
+      <input id="dni" type="text" placeholder="12345678" />
+    </div>
+
+    <div id="error-box" class="error-box"></div>
+
+    <button class="btn btn-primary" id="evaluate-btn" onclick="evaluateCandidate()">
+      <div class="spinner" id="spinner"></div>
+      <span id="btn-text">🚀 Evaluar candidato</span>
+    </button>
+
+    <div style="margin-top:.75rem; display:flex; justify-content:flex-end;">
+      <button class="btn btn-secondary" onclick="fillDemo()">Cargar ejemplo demo</button>
+    </div>
+  </div>
+
+  <!-- RESULT CARD -->
+  <div class="card" id="result-card">
+    <div class="card-title">📊 Resultado del análisis</div>
+
+    <!-- Empty state -->
+    <div class="result-empty" id="result-empty">
+      <div class="result-empty-icon">🤖</div>
+      <p>El resultado del análisis aparecerá<br/>aquí una vez enviado el formulario.</p>
+    </div>
+
+    <!-- Result content -->
+    <div id="result-content" style="display:none;">
+
+      <!-- Candidate name -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1rem;">
+        <div>
+          <div style="font-size:.72rem;color:var(--muted);margin-bottom:.2rem;">CANDIDATO</div>
+          <div id="res-name" style="font-size:1.1rem;font-weight:700;"></div>
+        </div>
+        <div id="res-cls-badge" class="classification-badge"></div>
+      </div>
+
+      <!-- Score ring -->
+      <div class="score-ring-wrap">
+        <div class="score-ring">
+          <svg width="88" height="88" viewBox="0 0 88 88">
+            <circle class="ring-bg" cx="44" cy="44" r="37" />
+            <circle class="ring-fill" id="ring-fill" cx="44" cy="44" r="37"
+              stroke-dasharray="232.5"
+              stroke-dashoffset="232.5" />
+          </svg>
+          <div class="score-num" id="res-score">—</div>
+        </div>
+        <div class="score-label">Puntuación global</div>
+      </div>
+
+      <!-- Breakdown -->
+      <div class="breakdown" id="breakdown-section" style="display:none;">
+        <div class="result-section">
+          <h4>Desglose por criterio</h4>
+          <div id="breakdown-bars"></div>
+        </div>
+      </div>
+
+      <!-- Strengths & Gaps -->
+      <div class="form-row" style="margin-bottom:1rem;">
+        <div class="result-section" id="strengths-section" style="display:none;">
+          <h4>✅ Fortalezas</h4>
+          <div class="chip-list" id="res-strengths"></div>
+        </div>
+        <div class="result-section" id="gaps-section" style="display:none;">
+          <h4>⚠️ Brechas</h4>
+          <div class="chip-list" id="res-gaps"></div>
+        </div>
+      </div>
+
+      <!-- Rationale -->
+      <div class="result-section" id="rationale-section" style="display:none;">
+        <h4>💬 Justificación</h4>
+        <div class="rationale-box" id="res-rationale"></div>
+      </div>
+
+      <!-- Decision -->
+      <div class="result-section" id="decision-section" style="display:none;">
+        <h4>📌 Decisión</h4>
+        <div class="rationale-box" id="res-decision"></div>
+      </div>
+
+    </div>
+  </div>
+
+</div>
+
+<!-- HISTORY -->
+<div style="max-width:1100px;margin:0 auto;padding:0 1.5rem 3rem;">
+  <div class="card">
+    <div class="card-title" style="margin-bottom:.9rem;">🗂️ Historial de evaluaciones</div>
+    <div class="history-list" id="history-list">
+      <div style="color:var(--muted);font-size:.8rem;text-align:center;padding:1rem 0;">
+        Aún no hay evaluaciones en esta sesión.
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Automa v2 · LangGraph + Groq · Sistema Multiagente de Reclutamiento
+</footer>
+
+<script>
+  // ── Config ──────────────────────────────────────────────────────────────────
+  const API_BASE = window.location.origin; // mismo dominio en Render
+  let skills = [];
+  let history = [];
+
+  // ── Status check ────────────────────────────────────────────────────────────
+  async function checkStatus() {
+    try {
+      const r = await fetch(`${API_BASE}/health`);
+      if (r.ok) {
+        document.getElementById('api-status').textContent = 'API Online';
+        document.getElementById('api-status').style.color = 'var(--green)';
+      } else throw new Error();
+    } catch {
+      document.getElementById('api-status').textContent = 'API Offline';
+      document.getElementById('api-status').style.color = 'var(--red)';
+    }
+  }
+  checkStatus();
+
+  // ── Tags input ───────────────────────────────────────────────────────────────
+  const skillsInput = document.getElementById('skills-input');
+  const tagsWrapper = document.getElementById('tags-wrapper');
+
+  tagsWrapper.addEventListener('click', () => skillsInput.focus());
+
+  skillsInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault();
+      addSkill(skillsInput.value.trim().replace(/,$/, ''));
+    }
+    if (e.key === 'Backspace' && !skillsInput.value && skills.length) {
+      removeSkill(skills.length - 1);
+    }
+  });
+
+  function addSkill(val) {
+    if (!val || skills.includes(val)) { skillsInput.value = ''; return; }
+    skills.push(val);
+    renderTags();
+    skillsInput.value = '';
+  }
+
+  function removeSkill(i) {
+    skills.splice(i, 1);
+    renderTags();
+  }
+
+  function renderTags() {
+    document.querySelectorAll('.tag').forEach(t => t.remove());
+    skills.forEach((s, i) => {
+      const tag = document.createElement('div');
+      tag.className = 'tag';
+      tag.innerHTML = `${s} <span class="tag-remove" onclick="removeSkill(${i})">✕</span>`;
+      tagsWrapper.insertBefore(tag, skillsInput);
+    });
+  }
+
+  // ── Demo data ────────────────────────────────────────────────────────────────
+  function fillDemo() {
+    document.getElementById('name').value = 'Carlos Mendoza Quispe';
+    document.getElementById('candidate_id').value = 'CAND-' + Date.now().toString().slice(-4);
+    document.getElementById('email').value = 'carlos.mendoza@dev.pe';
+    document.getElementById('phone').value = '+51 987 654 321';
+    document.getElementById('position').value = 'Desarrollador Backend Senior';
+    document.getElementById('years_exp').value = '6';
+    document.getElementById('education').value = 'Ingeniería de Sistemas';
+    document.getElementById('dni').value = '45678901';
+    document.getElementById('cv_text').value =
+      'Desarrollador Backend con 6 años de experiencia especializado en Python y FastAPI. ' +
+      'Lideré la migración de arquitectura monolítica a microservicios en empresa fintech, ' +
+      'reduciendo latencia en 40%. Experiencia con PostgreSQL, Docker, Redis y CI/CD. ' +
+      'Titulado en Ingeniería de Sistemas por la PUCP. Portfolio en github.com/cmendoza.';
+    skills = ['Python', 'FastAPI', 'PostgreSQL', 'Docker', 'Redis'];
+    renderTags();
+  }
+
+  // ── Evaluate ─────────────────────────────────────────────────────────────────
+  async function evaluateCandidate() {
+    const btn  = document.getElementById('evaluate-btn');
+    const spin = document.getElementById('spinner');
+    const txt  = document.getElementById('btn-text');
+    const err  = document.getElementById('error-box');
+
+    // Collect & validate
+    const payload = {
+      candidate_id: document.getElementById('candidate_id').value.trim() || ('CAND-' + Date.now()),
+      name:         document.getElementById('name').value.trim(),
+      email:        document.getElementById('email').value.trim(),
+      phone:        document.getElementById('phone').value.trim(),
+      position:     document.getElementById('position').value.trim(),
+      years_exp:    parseInt(document.getElementById('years_exp').value) || 0,
+      skills:       [...skills],
+      education:    document.getElementById('education').value.trim(),
+      cv_text:      document.getElementById('cv_text').value.trim(),
+      dni:          document.getElementById('dni').value.trim() || null,
+      notes:        []
+    };
+
+    if (!payload.name || !payload.email || !payload.cv_text) {
+      showError('Por favor completa al menos: Nombre, Email y texto del CV.');
+      return;
+    }
+
+    err.style.display = 'none';
+    btn.disabled = true;
+    spin.style.display = 'block';
+    txt.textContent = 'Evaluando…';
+
+    try {
+      const res = await fetch(`${API_BASE}/evaluate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `Error ${res.status}`);
+      }
+
+      const data = await res.json();
+      renderResult(data, payload.name);
+      addToHistory(data, payload);
+
+    } catch (e) {
+      showError('Error al conectar con la API: ' + e.message);
+    } finally {
+      btn.disabled = false;
+      spin.style.display = 'none';
+      txt.textContent = '🚀 Evaluar candidato';
+    }
+  }
+
+  function showError(msg) {
+    const err = document.getElementById('error-box');
+    err.textContent = '⚠️ ' + msg;
+    err.style.display = 'block';
+  }
+
+  // ── Render result ────────────────────────────────────────────────────────────
+  function renderResult(data, name) {
+    document.getElementById('result-empty').style.display   = 'none';
+    document.getElementById('result-content').style.display = 'block';
+
+    // Name
+    document.getElementById('res-name').textContent = name;
+
+    // Classification badge
+    const cls = data.classification || '';
+    const dec = (data.decision || '').toString().toUpperCase();
+    const badge = document.getElementById('res-cls-badge');
+    badge.textContent = cls || dec;
+    badge.className = 'classification-badge';
+    if (dec.includes('APPROVED') || dec.includes('APROBADO')) {
+      badge.classList.add('cls-approved');
+    } else if (dec.includes('REJECTED') || dec.includes('RECHAZ')) {
+      badge.classList.add('cls-rejected');
+    } else {
+      badge.classList.add('cls-pending');
+    }
+
+    // Score
+    const state  = data.state || {};
+    const evalR  = state.evaluation_result || {};
+    const score  = evalR.score ?? null;
+    const scoreEl = document.getElementById('res-score');
+    const ringFill = document.getElementById('ring-fill');
+    const circumference = 232.5;
+    if (score !== null) {
+      scoreEl.textContent = Math.round(score);
+      const offset = circumference - (score / 100) * circumference;
+      setTimeout(() => { ringFill.style.strokeDashoffset = offset; }, 100);
+    } else {
+      scoreEl.textContent = '—';
+      ringFill.style.strokeDashoffset = circumference;
+    }
+
+    // Breakdown
+    const breakdown = evalR.breakdown || {};
+    const barsEl = document.getElementById('breakdown-bars');
+    barsEl.innerHTML = '';
+    const bLabels = {
+      experiencia: 'Experiencia',
+      skills:      'Habilidades',
+      educacion:   'Educación',
+      calidad_cv:  'Calidad CV'
+    };
+    if (Object.keys(breakdown).length) {
+      document.getElementById('breakdown-section').style.display = 'block';
+      for (const [k, v] of Object.entries(breakdown)) {
+        const label = bLabels[k] || k;
+        barsEl.innerHTML += `
+          <div class="bar-row">
+            <div class="bar-label">${label}</div>
+            <div class="bar-track"><div class="bar-fill" style="width:${Math.min(v,100)}%"></div></div>
+            <div class="bar-val">${Math.round(v)}</div>
+          </div>`;
+      }
+    }
+
+    // Strengths
+    const strengths = evalR.strengths || [];
+    if (strengths.length) {
+      document.getElementById('strengths-section').style.display = 'block';
+      document.getElementById('res-strengths').innerHTML =
+        strengths.map(s => `<span class="chip chip-green">${s}</span>`).join('');
+    }
+
+    // Gaps
+    const gaps = evalR.gaps || [];
+    if (gaps.length) {
+      document.getElementById('gaps-section').style.display = 'block';
+      document.getElementById('res-gaps').innerHTML =
+        gaps.map(g => `<span class="chip chip-red">${g}</span>`).join('');
+    }
+
+    // Rationale
+    const clsR = state.classification_result || {};
+    if (clsR.rationale) {
+      document.getElementById('rationale-section').style.display = 'block';
+      document.getElementById('res-rationale').textContent = clsR.rationale;
+    }
+
+    // Decision
+    if (data.decision) {
+      document.getElementById('decision-section').style.display = 'block';
+      document.getElementById('res-decision').textContent =
+        typeof data.decision === 'string' ? data.decision : JSON.stringify(data.decision, null, 2);
+    }
+  }
+
+  // ── History ───────────────────────────────────────────────────────────────────
+  function addToHistory(data, payload) {
+    history.unshift({ data, payload, ts: new Date() });
+    renderHistory();
+  }
+
+  function renderHistory() {
+    const el = document.getElementById('history-list');
+    if (!history.length) return;
+    el.innerHTML = history.map((h, i) => {
+      const dec = (h.data.decision || '').toString().toUpperCase();
+      const color = dec.includes('APPROVED') || dec.includes('APROBADO') ? 'var(--green)'
+                  : dec.includes('REJECT') || dec.includes('RECHAZ')     ? 'var(--red)'
+                  : 'var(--yellow)';
+      const cls = h.data.classification || '—';
+      const time = h.ts.toLocaleTimeString('es-PE', { hour:'2-digit', minute:'2-digit' });
+      return `
+        <div class="history-item" onclick="restoreResult(${i})">
+          <div>
+            <div class="history-name">${h.payload.name}</div>
+            <div class="history-meta">${h.payload.position} · ${time}</div>
+          </div>
+          <span class="chip" style="background:rgba(0,0,0,.2);color:${color};border-color:${color}40;">
+            ${cls}
+          </span>
+        </div>`;
+    }).join('');
+  }
+
+  function restoreResult(i) {
+    const h = history[i];
+    renderResult(h.data, h.payload.name);
+  }
+</script>
+</body>
+</html>
