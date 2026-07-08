@@ -11,10 +11,7 @@ Para usar la API real, necesitas:
   - Credenciales OAuth 2.0 en developers.linkedin.com
 """
 
-import uuid
-import json
 from dataclasses import dataclass
-from typing import Optional
 from .schemas import CandidateProfile
 
 
@@ -216,7 +213,6 @@ class LinkedInSource:
         Requiere plan LinkedIn Recruiter.
         Endpoint: POST /talentSearch
         """
-        import requests
         # En producción, aquí va la llamada real:
         # response = requests.post(
         #     f"{self.BASE_URL}/talentSearch",

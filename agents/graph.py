@@ -21,13 +21,13 @@ from langgraph.errors import NodeInterrupt
 from shared.state import RecruitmentState
 from shared.schemas import (
     ValidationResult, EvaluationResult, ClassificationResult,
-    CommunicationResult, FollowUpResult,
+    CommunicationResult,
 )
 from tools.pipeline_tools import verify_sunedu_credentials, send_recruitment_email, save_pipeline_report
 from tools.rag_tools import retrieve_hr_policies
 from .prompts import (
     VALIDATION_PROMPT, EVALUATION_PROMPT, CLASSIFICATION_PROMPT,
-    COMMUNICATION_PROMPT, FOLLOWUP_PROMPT,
+    COMMUNICATION_PROMPT,
 )
 
 # Modelo por defecto: llama-3.3-70b-versatile (el mismo del proyecto original).

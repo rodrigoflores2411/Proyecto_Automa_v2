@@ -1,13 +1,12 @@
-import os
 from dotenv import load_dotenv
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 
-load_dotenv()
-
 from shared.schemas import CandidateProfile
 from agents.graph import build_graph
+
+load_dotenv()
 
 app = FastAPI(
     title="Sistema Multiagente de Reclutamiento",

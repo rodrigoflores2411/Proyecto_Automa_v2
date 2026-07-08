@@ -7,7 +7,7 @@ diseño del grafo (qué nodos pueden escribir qué campos), no con locks manuale
 Ver documento de diseño §3.5.
 """
 
-from typing import TypedDict, Optional
+from typing import TypedDict
 from .schemas import CandidateProfile
 
 

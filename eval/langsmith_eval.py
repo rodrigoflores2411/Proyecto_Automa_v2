@@ -12,18 +12,16 @@ Si no hay credenciales de LangSmith, corre en modo local (sin subir dataset)
 y solo imprime el resumen de evaluadores por consola — así el proyecto sigue
 siendo reproducible sin depender de una cuenta externa.
 """
-
 import os
 from dotenv import load_dotenv
-
-load_dotenv()
-
 from langsmith import Client
 from langsmith.evaluation import evaluate
 
 from shared.schemas import CandidateProfile
 from agents.graph import build_graph
 from eval.golden_set import GOLDEN_SET, JOB_REQUIREMENTS
+
+load_dotenv()
 
 DATASET_NAME = "reclutamiento-golden-set-v1"
 
