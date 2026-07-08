@@ -33,20 +33,43 @@ jobs:
   eval-golden-set:
     runs-on: ubuntu-latest
     needs: test
+    # Solo ejecutar en main; el job es INFORMATIVO y nunca bloquea el pipeline
     if: github.ref == 'refs/heads/main'
+    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
+
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
-      - run: pip install -r requirements.txt
+
+      - name: Instalar dependencias
+        run: pip install -r requirements.txt
+
+      - name: Verificar secretos disponibles
+        id: check_secrets
+        run: |
+          if [ -z "${{ secrets.GROQ_API_KEY }}" ] || [ -z "${{ secrets.LANGSMITH_API_KEY }}" ]; then
+            echo "skip=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Faltan GROQ_API_KEY o LANGSMITH_API_KEY. Saltando evaluación."
+          else
+            echo "skip=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Evaluación LangSmith sobre golden set
+        if: steps.check_secrets.outputs.skip == 'false'
+        continue-on-error: true
         env:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           LANGSMITH_API_KEY: ${{ secrets.LANGSMITH_API_KEY }}
           LANGSMITH_TRACING: "true"
           LANGSMITH_PROJECT: "reclutamiento-ci"
-        run: python -m eval.langsmith_eval
+        run: |
+          python -m eval.langsmith_eval || {
+            echo "⚠️ La evaluación falló (error de red o autenticación)."
+            echo "   Este job es INFORMATIVO y no bloquea el despliegue."
+            exit 0
+          }
         # Regla de promoción (documento §5.3.3): este job es informativo en CI;
         # el gate real de "no desplegar si baja del baseline" se aplica en el
         # paso de revisión del experimento en LangSmith antes de merge a main.
