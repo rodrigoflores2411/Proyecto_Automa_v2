@@ -112,6 +112,7 @@ def evaluar_clasificar(state: RecruitmentState) -> dict:
         "score": ev.score,
         "strengths": ev.strengths,
         "gaps": ev.gaps,
+        "breakdown": ev.breakdown,
         "rag_context_used": hr_policies_context,
         "classification": cl.classification,
         "decision": cl.decision,

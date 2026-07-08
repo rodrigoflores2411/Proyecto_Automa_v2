@@ -28,6 +28,7 @@ class RecruitmentState(TypedDict, total=False):
     score: float
     strengths: list[str]
     gaps: list[str]
+    breakdown: dict[str, float]
     rag_context_used: str  # políticas de RRHH recuperadas (§3.3, trazabilidad RAG)
 
     # Salida de Clasificación

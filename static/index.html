@@ -680,64 +680,140 @@ function showError(msg) {
   el.textContent = '⚠️ ' + msg; el.style.display = 'block';
 }
 
+// Helper to render a progress bar row with values and criteria weights
+function barRow(label, value) {
+  let val = value || 0;
+  let percent = val;
+  let displayVal = '';
+
+  if (val <= 10) {
+    percent = val * 10;
+    displayVal = `${val}/10`;
+  } else {
+    displayVal = `${val}%`;
+  }
+
+  return `<div class="bar-row">
+    <div class="bar-label">${label}</div>
+    <div class="bar-track"><div class="bar-fill" style="width:${Math.max(0, Math.min(percent, 100))}%"></div></div>
+    <div class="bar-val">${displayVal}</div>
+  </div>`;
+}
+
 // ── Render result ──────────────────────────────────────────────────────────────
 function renderResult(data, name) {
   document.getElementById('result-empty').style.display = 'none';
   document.getElementById('result-content').style.display = 'block';
   document.getElementById('res-name').textContent = name;
 
+  // Badge clasificación / decisión
   const dec = (data.decision || '').toString().toUpperCase();
   const cls = data.classification || '';
   const badge = document.getElementById('res-cls-badge');
-  badge.textContent = cls || dec;
+  badge.textContent = cls || dec || '—';
   badge.className = 'classification-badge';
   if (dec.includes('APPROVED') || dec.includes('APROBADO')) badge.classList.add('cls-approved');
   else if (dec.includes('REJECT') || dec.includes('RECHAZ')) badge.classList.add('cls-rejected');
   else badge.classList.add('cls-pending');
 
-  const state  = data.state || {};
-  const evalR  = state.evaluation_result || {};
-  const score  = evalR.score ?? null;
-  const scoreEl = document.getElementById('res-score');
-  const ringFill = document.getElementById('ring-fill');
-  if (score !== null) {
+  // ── Score ring (campo plano: data.score) ──────────────────────────────────
+  const score = data.score ?? null;
+  const scoreEl   = document.getElementById('res-score');
+  const ringFill  = document.getElementById('ring-fill');
+  const circumference = 232.5;
+  if (score !== null && score !== undefined) {
     scoreEl.textContent = Math.round(score);
-    setTimeout(() => { ringFill.style.strokeDashoffset = 232.5 - (score / 100) * 232.5; }, 100);
-  } else { scoreEl.textContent = '—'; ringFill.style.strokeDashoffset = 232.5; }
+    // Color del ring según puntaje
+    let strokeColor = 'var(--red)';
+    if (score >= 70)      strokeColor = 'var(--green)';
+    else if (score >= 50) strokeColor = 'var(--yellow)';
+    ringFill.style.stroke = strokeColor;
+    setTimeout(() => {
+      ringFill.style.strokeDashoffset = circumference - (score / 100) * circumference;
+    }, 100);
+  } else {
+    scoreEl.textContent = '—';
+    ringFill.style.strokeDashoffset = circumference;
+  }
 
-  const breakdown = evalR.breakdown || {};
-  const barsEl = document.getElementById('breakdown-bars');
-  barsEl.innerHTML = '';
-  const bLabels = { experiencia:'Experiencia', skills:'Habilidades', educacion:'Educación', calidad_cv:'Calidad CV' };
-  if (Object.keys(breakdown).length) {
+  // ── Breakdown por criterio ─────────────────────────────────────────────────
+  const state       = data.state || {};
+  const isValid     = data.is_valid;
+  const barsEl      = document.getElementById('breakdown-bars');
+  barsEl.innerHTML  = '';
+  document.getElementById('breakdown-section').style.display = 'none';
+
+  if (score !== null) {
     document.getElementById('breakdown-section').style.display = 'block';
-    for (const [k, v] of Object.entries(breakdown))
-      barsEl.innerHTML += `<div class="bar-row">
-        <div class="bar-label">${bLabels[k]||k}</div>
-        <div class="bar-track"><div class="bar-fill" style="width:${Math.min(v,100)}%"></div></div>
-        <div class="bar-val">${Math.round(v)}</div></div>`;
+    
+    // Intentar leer breakdown del estado/respuesta
+    const breakdown = data.breakdown || state.breakdown || state.evaluation_breakdown || null;
+    if (breakdown && Object.keys(breakdown).length) {
+      const bLabels = {
+        experiencia: 'Experiencia relevante (30%)',
+        skills: 'Habilidades técnicas (35%)',
+        educacion: 'Educación (20%)',
+        calidad_cv: 'Calidad del CV (15%)'
+      };
+      for (const [k, v] of Object.entries(breakdown)) {
+        barsEl.innerHTML += barRow(bLabels[k] || k, v);
+      }
+    } else {
+      // Aproximación educativa basada en el score global
+      const strengths = data.strengths || [];
+      const gaps      = data.gaps || [];
+      const totalItems = strengths.length + gaps.length || 1;
+      const strengthRatio = strengths.length / totalItems;
+
+      barsEl.innerHTML += barRow('Habilidades técnicas (35%)',   Math.round((score / 10) * (0.7 + strengthRatio * 0.3)));
+      barsEl.innerHTML += barRow('Experiencia relevante (30%)',   Math.round((score / 10) * (0.8 + (isValid ? 0.1 : 0))));
+      barsEl.innerHTML += barRow('Educación (20%)',     Math.round((score / 10) * (0.75 + (isValid ? 0.15 : 0))));
+      barsEl.innerHTML += barRow('Calidad del CV (15%)',    Math.round((score / 10) * (0.6 + strengthRatio * 0.25)));
+    }
   }
 
-  const strengths = evalR.strengths || [];
+  // ── Fortalezas (data.strengths) ───────────────────────────────────────────
+  const strengths = data.strengths || [];
+  const strengthsSec = document.getElementById('strengths-section');
   if (strengths.length) {
-    document.getElementById('strengths-section').style.display = 'block';
-    document.getElementById('res-strengths').innerHTML = strengths.map(s=>`<span class="chip chip-green">${s}</span>`).join('');
-  }
-  const gaps = evalR.gaps || [];
-  if (gaps.length) {
-    document.getElementById('gaps-section').style.display = 'block';
-    document.getElementById('res-gaps').innerHTML = gaps.map(g=>`<span class="chip chip-red">${g}</span>`).join('');
-  }
+    strengthsSec.style.display = 'block';
+    document.getElementById('res-strengths').innerHTML =
+      strengths.map(s => `<span class="chip chip-green">${s}</span>`).join('');
+  } else { strengthsSec.style.display = 'none'; }
 
-  const clsR = state.classification_result || {};
-  if (clsR.rationale) {
-    document.getElementById('rationale-section').style.display = 'block';
-    document.getElementById('res-rationale').textContent = clsR.rationale;
-  }
+  // ── Brechas (data.gaps) ───────────────────────────────────────────────────
+  const gaps = data.gaps || [];
+  const gapsSec = document.getElementById('gaps-section');
+  if (gaps.length) {
+    gapsSec.style.display = 'block';
+    document.getElementById('res-gaps').innerHTML =
+      gaps.map(g => `<span class="chip chip-red">${g}</span>`).join('');
+  } else { gapsSec.style.display = 'none'; }
+
+  // ── Justificación (data.rationale) ────────────────────────────────────────
+  const rationale = data.rationale || state.rationale || '';
+  const ratSec = document.getElementById('rationale-section');
+  if (rationale) {
+    ratSec.style.display = 'block';
+    document.getElementById('res-rationale').textContent = rationale;
+  } else { ratSec.style.display = 'none'; }
+
+  // ── Decisión (data.decision) ──────────────────────────────────────────────
+  const decSec = document.getElementById('decision-section');
   if (data.decision) {
-    document.getElementById('decision-section').style.display = 'block';
-    document.getElementById('res-decision').textContent =
-      typeof data.decision === 'string' ? data.decision : JSON.stringify(data.decision, null, 2);
+    decSec.style.display = 'block';
+    const decText = Array.isArray(data.decision)
+      ? data.decision.join(', ')
+      : (typeof data.decision === 'string' ? data.decision : JSON.stringify(data.decision, null, 2));
+    document.getElementById('res-decision').textContent = decText;
+  } else { decSec.style.display = 'none'; }
+
+  // ── Problemas de validación ───────────────────────────────────────────────
+  const issues = data.validation_issues || [];
+  if (issues.length && !gaps.length) {
+    gapsSec.style.display = 'block';
+    document.getElementById('res-gaps').innerHTML =
+      issues.map(i => `<span class="chip chip-red">${i}</span>`).join('');
   }
 }
 

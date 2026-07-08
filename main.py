@@ -176,14 +176,19 @@ def evaluate(candidate: CandidateProfile):
         return JSONResponse(
             content=jsonable_encoder({
                 "candidate": candidate.name,
-                "classification": state.values.get(
-                    "classification",
-                    "RECHAZO_TEMPRANO"
-                ),
+                "classification": state.values.get("classification", "RECHAZO_TEMPRANO"),
                 "decision": state.values.get(
                     "decision",
                     state.values.get("validation_issues")
                 ),
+                # Campos de evaluación (leídos directamente del estado plano)
+                "score": state.values.get("score"),
+                "strengths": state.values.get("strengths", []),
+                "gaps": state.values.get("gaps", []),
+                "breakdown": state.values.get("breakdown", {}),
+                "rationale": state.values.get("rationale", ""),
+                "validation_issues": state.values.get("validation_issues", []),
+                "is_valid": state.values.get("is_valid"),
                 "state": state.values
             })
         )
