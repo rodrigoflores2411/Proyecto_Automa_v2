@@ -7,7 +7,6 @@ from fastapi.middleware.cors import CORSMiddleware
 import os
 import io
 import json
-import time
 
 from shared.schemas import CandidateProfile
 from agents.graph import build_graph
